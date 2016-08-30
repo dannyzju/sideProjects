@@ -12,10 +12,14 @@ import java.io.OutputStreamWriter;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Observable;
 
-public class TodoList {
+import rx.functions.Action1;
+import rx.subjects.ReplaySubject;
 
-    private TodoListener listener;
+public class TodoList implements Action1<Todo> {
+    ReplaySubject<TodoList> notifier = ReplaySubject.create();
+
     private List<Todo> todoList;
 
     public TodoList() {
@@ -27,8 +31,8 @@ public class TodoList {
         readJson(json);
     }
 
-    public void setListener(TodoListener listener) {
-        this.listener = listener;
+    public ReplaySubject<TodoList> asObservable() {
+        return notifier;
     }
 
     public int size() {
@@ -41,26 +45,51 @@ public class TodoList {
 
     public void add(Todo t) {
         todoList.add(t);
-        if (listener != null) {
-            listener.onTodoListChanged(this);
-        }
+        notifier.onNext(this);
     }
 
     public void remove(Todo t) {
         todoList.remove(t);
-        if (listener != null) {
-            listener.onTodoListChanged(this);
-        }
+        notifier.onNext(this);
     }
 
-    public void toggle(Todo t) {
+    private void toggle(Todo t) {
         Todo todo = todoList.get(todoList.indexOf(t));
         boolean curVal = todo.isCompleted;
         todo.isCompleted = !curVal;
-        if (listener != null) {
-            listener.onTodoListChanged(this);
-        }
+        notifier.onNext(this);
     }
+
+
+    @Override
+    public void call(Todo todo) {
+        toggle(todo);
+    }
+
+    public List<Todo> getAll() {
+        return todoList;
+    }
+
+    public List<Todo> getIncomplete() {
+        ArrayList<Todo> incomplete = new ArrayList<>();
+        for (Todo t : todoList) {
+            if (!t.isCompleted) {
+                incomplete.add(t);
+            }
+        }
+        return incomplete;
+    }
+
+    public List<Todo> getComplete() {
+        ArrayList<Todo> complete = new ArrayList<>();
+        for (Todo t : todoList) {
+            if (t.isCompleted) {
+                complete.add(t);
+            }
+        }
+        return complete;
+    }
+
 
     private void readJson(String json) {
 
@@ -128,4 +157,5 @@ public class TodoList {
 
         return json;
     }
+
 }
